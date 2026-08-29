@@ -7,9 +7,12 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run quality",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "typecheck": "tsc --noEmit",
+    "quality": "npm run lint && npm run typecheck && npm run test",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts"
   },
