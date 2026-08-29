@@ -1,0 +1,6 @@
+.editor select{width:100%;border:1px solid #d7dfdb;border-radius:9px;padding:10px 12px;background:#fcfdfc;outline:none;color:var(--ink)}
+.add-buttons{display:flex;gap:6px}.add-buttons .icon-button{width:auto;padding:0 10px;font-size:11px;font-weight:800}
+.task-row--project{background:#eef4f1;border-color:#d5e0dc}.task-row--project .task-row-copy strong{font-family:Georgia;font-size:15px}
+.task-row--child{margin-left:24px;width:calc(100% - 24px);position:relative}.task-row--child:before{content:'↳';position:absolute;left:-18px;color:#91a09b}
+.project-editor-note{display:flex;flex-direction:column;gap:6px;margin-top:22px;padding:16px;background:#edf4f1;border-radius:11px;color:#315b4e;font-size:12px}.project-editor-note span{color:var(--muted)}.project-editor-note .button{align-self:flex-start;margin-top:7px}
+@media(max-width:560px){.add-buttons{flex-direction:column}.task-row--child{margin-left:14px;width:calc(100% - 14px)}}
