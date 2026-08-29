@@ -92,4 +92,12 @@ Le bouton **Exporter Sheets** télécharge un fichier CSV UTF-8 prêt à être i
 
 Chaque tâche possède également un acteur obligatoire. Les acteurs sont conservés dans le référentiel local de la MEP. Lorsqu'un nom inconnu est saisi, il est automatiquement créé puis affecté à la tâche. L'acteur apparaît aussi dans l'export Google Sheets.
 
+## Graphe temps réel
+
+L'arbre de la MEP regroupe les tâches par niveau de dépendance et se met à jour chaque seconde. Gris indique une tâche non démarrée, orange une tâche en cours ou en dépassement, et vert une tâche terminée avec succès. Chaque nœud affiche l'acteur et ouvre la tâche correspondante au clic.
+
+## Graphe temps réel
+
+L'arbre de la MEP regroupe les tâches par niveau de dépendance et se met à jour chaque seconde. Gris indique une tâche non démarrée, orange une tâche en cours ou en dépassement, et vert une tâche terminée avec succès. Chaque nœud affiche l'acteur et ouvre la tâche correspondante au clic.
+
 Dans Google Sheets : **Fichier → Importer**, puis sélectionner le fichier téléchargé. Le séparateur utilisé est le point-virgule, adapté aux paramètres régionaux français.
