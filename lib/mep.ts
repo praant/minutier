@@ -42,6 +42,7 @@ export interface TaskExecution {
   startedAt: string | null;
   endedAt: string | null;
   completedActionIds: string[];
+  notes?: string[];
 }
 
 export interface MepExecution {
@@ -67,6 +68,7 @@ const emptyExecution = (): TaskExecution => ({
   startedAt: null,
   endedAt: null,
   completedActionIds: [],
+  notes: [],
 });
 
 export function validateDefinition(definition: MepDefinition): string[] {
@@ -211,6 +213,12 @@ export function toggleAction(mep: Mep, taskId: string, actionId: string): Mep {
       ? execution.completedActionIds.filter((id) => id !== actionId)
       : [...execution.completedActionIds, actionId],
   }));
+}
+
+export function addExecutionNote(mep: Mep, taskId: string, note: string): Mep {
+  if (!mep.execution) throw new Error('La MEP doit être lancée.');
+  if (!note.trim()) throw new Error('La consigne ne peut pas être vide.');
+  return updateExecution(mep, taskId, (execution) => ({ ...execution, notes: [...(execution.notes ?? []), note.trim()] }));
 }
 
 export function completeTask(mep: Mep, taskId: string, now = new Date()): Mep {
