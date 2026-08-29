@@ -61,4 +61,17 @@ describe('moteur de MEP', () => {
     expect(mep.definition.actors).toHaveLength(before + 1);
     expect(mep.definition.actors.find((actor) => actor.name === 'SRE de garde')?.id).toBe(mep.definition.tasks[0].actorId);
   });
+
+  it('calcule le statut d un projet depuis ses sous-tâches', () => {
+    const draft = createSampleMep();
+    draft.definition.tasks.push({ id: 'deployments', kind: 'project', parentId: null, title: 'Déploiements', description: '', actorId: 'actor-release', plannedDurationSeconds: 60, dependsOn: [], actions: [], links: [] });
+    draft.definition.tasks.find((task) => task.id === 'api')!.parentId = 'deployments';
+    draft.definition.tasks.find((task) => task.id === 'web')!.parentId = 'deployments';
+    let mep = launchMep(draft, at('2026-08-28T19:00:00Z'));
+    expect(mep.execution?.tasks.deployments).toBeUndefined();
+    expect(getTaskStatus(mep, 'deployments')).toBe('blocked');
+    mep = startTask(mep, 'preflight', at('2026-08-28T19:00:00Z'));
+    mep = completeTask(mep, 'preflight', at('2026-08-28T19:03:00Z'));
+    expect(getTaskStatus(mep, 'deployments', at('2026-08-28T19:03:00Z'))).toBe('ready');
+  });
 });

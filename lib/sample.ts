@@ -17,6 +17,7 @@ export const createSampleMep = (): Mep => ({
     tasks: [
       {
         id: 'preflight',
+        kind: 'task', parentId: null,
         title: 'Contrôles avant déploiement',
         description: 'Valider le pipeline, le plan de retour arrière et prévenir le canal de suivi.',
         actorId: 'actor-release',
@@ -30,6 +31,7 @@ export const createSampleMep = (): Mep => ({
       },
       {
         id: 'api',
+        kind: 'task', parentId: null,
         title: 'Déployer l’API',
         description: 'Déployer la nouvelle image puis surveiller les erreurs pendant quelques minutes.',
         actorId: 'actor-backend',
@@ -43,6 +45,7 @@ export const createSampleMep = (): Mep => ({
       },
       {
         id: 'web',
+        kind: 'task', parentId: null,
         title: 'Déployer le front',
         description: 'Publier les assets, purger le cache et vérifier la page de connexion.',
         actorId: 'actor-frontend',
@@ -56,6 +59,7 @@ export const createSampleMep = (): Mep => ({
       },
       {
         id: 'validation',
+        kind: 'task', parentId: null,
         title: 'Validation finale',
         description: 'Consolider les contrôles fonctionnels et annoncer la fin de la mise en production.',
         actorId: 'actor-product',

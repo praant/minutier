@@ -54,6 +54,6 @@ export function migrateMep(mep: Mep): Mep {
     plannedStartAt: mep.definition.plannedStartAt || new Date(now.getTime() + 3600000).toISOString().slice(0, 16),
     plannedEndAt: mep.definition.plannedEndAt || new Date(now.getTime() + 7200000).toISOString().slice(0, 16),
     actors: Array.isArray(actors) && actors.length ? actors : [fallbackActor],
-    tasks: mep.definition.tasks.map((task) => ({ ...task, actorId: task.actorId || fallbackActor.id })),
+    tasks: mep.definition.tasks.map((task) => ({ ...task, kind: task.kind || 'task', parentId: task.parentId ?? null, actorId: task.actorId || fallbackActor.id })),
   } };
 }

@@ -19,6 +19,8 @@ export interface Actor {
 
 export interface TaskDefinition {
   id: string;
+  kind: 'task' | 'project';
+  parentId: string | null;
   title: string;
   description: string;
   actorId: string;
@@ -84,6 +86,10 @@ export function validateDefinition(definition: MepDefinition): string[] {
     if (!task.title.trim()) errors.push(`La tâche ${task.id} doit avoir un titre.`);
     if (!task.actorId || !actorIds.has(task.actorId)) errors.push(`${task.title} doit avoir un acteur affecté présent dans la BDD.`);
     if (task.plannedDurationSeconds <= 0) errors.push(`${task.title} doit avoir une durée positive.`);
+    if (task.parentId) {
+      const parent = definition.tasks.find((candidate) => candidate.id === task.parentId);
+      if (!parent || parent.kind !== 'project') errors.push(`${task.title} doit être rattachée à un projet existant.`);
+    }
     task.dependsOn.forEach((dependencyId) => {
       if (!ids.has(dependencyId)) errors.push(`${task.title} dépend d'une tâche inexistante.`);
       if (dependencyId === task.id) errors.push(`${task.title} ne peut pas dépendre d'elle-même.`);
@@ -133,7 +139,7 @@ export function launchMep(mep: Mep, now = new Date()): Mep {
   if (errors.length) throw new Error(errors.join(' '));
 
   const definition = structuredClone(mep.definition);
-  const tasks = Object.fromEntries(definition.tasks.map((task) => [task.id, emptyExecution()]));
+  const tasks = Object.fromEntries(definition.tasks.filter((task) => task.kind !== 'project').map((task) => [task.id, emptyExecution()]));
   return {
     ...mep,
     status: 'running',
@@ -145,13 +151,21 @@ export function launchMep(mep: Mep, now = new Date()): Mep {
 export function getTaskStatus(mep: Mep, taskId: string, now = new Date()): TaskStatus {
   const task = mep.definition.tasks.find((candidate) => candidate.id === taskId);
   if (!task) throw new Error('Tâche introuvable.');
+  if (task.kind === 'project') {
+    const children = mep.definition.tasks.filter((candidate) => candidate.parentId === task.id);
+    if (!children.length) return 'blocked';
+    const statuses = children.map((child) => getTaskStatus(mep, child.id, now));
+    if (statuses.every((status) => status === 'completed')) return 'completed';
+    if (statuses.some((status) => status === 'overdue')) return 'overdue';
+    if (statuses.some((status) => status === 'running' || status === 'completed')) return 'running';
+    if (statuses.some((status) => status === 'ready')) return 'ready';
+    return 'blocked';
+  }
   if (!mep.execution) return task.dependsOn.length ? 'blocked' : 'ready';
 
   const execution = mep.execution.tasks[taskId];
   if (execution.endedAt) return 'completed';
-  const allDependenciesDone = task.dependsOn.every(
-    (dependencyId) => Boolean(mep.execution?.tasks[dependencyId]?.endedAt),
-  );
+  const allDependenciesDone = task.dependsOn.every((dependencyId) => getTaskStatus(mep, dependencyId, now) === 'completed');
   if (!allDependenciesDone) return 'blocked';
   if (!execution.startedAt) return 'ready';
   const elapsed = Math.floor((now.getTime() - new Date(execution.startedAt).getTime()) / 1000);
@@ -161,13 +175,18 @@ export function getTaskStatus(mep: Mep, taskId: string, now = new Date()): TaskS
 export function getTaskView(mep: Mep, taskId: string, now = new Date()): TaskView {
   const task = mep.definition.tasks.find((candidate) => candidate.id === taskId);
   if (!task) throw new Error('Tâche introuvable.');
-  const execution = mep.execution?.tasks[taskId] ?? null;
+  const children = task.kind === 'project' ? mep.definition.tasks.filter((candidate) => candidate.parentId === task.id) : [];
+  const childExecutions = children.flatMap((child) => mep.execution?.tasks[child.id] ? [mep.execution.tasks[child.id]] : []);
+  const starts = childExecutions.flatMap((item) => item.startedAt ? [item.startedAt] : []).sort();
+  const ends = childExecutions.flatMap((item) => item.endedAt ? [item.endedAt] : []).sort();
+  const execution = task.kind === 'project' ? (starts.length ? { startedAt: starts[0], endedAt: ends.length === children.length ? ends.at(-1) ?? null : null, completedActionIds: [] } : null) : mep.execution?.tasks[taskId] ?? null;
   const end = execution?.endedAt ? new Date(execution.endedAt) : now;
   const elapsedSeconds = execution?.startedAt
     ? Math.max(0, Math.floor((end.getTime() - new Date(execution.startedAt).getTime()) / 1000))
     : 0;
   return {
     ...task,
+    plannedDurationSeconds: task.kind === 'project' ? children.reduce((total, child) => total + child.plannedDurationSeconds, 0) : task.plannedDurationSeconds,
     execution,
     status: getTaskStatus(mep, taskId, now),
     elapsedSeconds,
@@ -177,6 +196,7 @@ export function getTaskView(mep: Mep, taskId: string, now = new Date()): TaskVie
 
 export function startTask(mep: Mep, taskId: string, now = new Date()): Mep {
   if (mep.status !== 'running' || !mep.execution) throw new Error('La MEP doit être en cours.');
+  if (mep.definition.tasks.find((task) => task.id === taskId)?.kind === 'project') throw new Error('Démarrez une sous-tâche du projet.');
   if (getTaskStatus(mep, taskId, now) !== 'ready') throw new Error("Cette tâche n'est pas prête.");
   return updateExecution(mep, taskId, (execution) => ({ ...execution, startedAt: now.toISOString() }));
 }
@@ -198,7 +218,7 @@ export function completeTask(mep: Mep, taskId: string, now = new Date()): Mep {
   const status = getTaskStatus(mep, taskId, now);
   if (status !== 'running' && status !== 'overdue') throw new Error('Seule une tâche démarrée peut être terminée.');
   const updated = updateExecution(mep, taskId, (execution) => ({ ...execution, endedAt: now.toISOString() }));
-  const allDone = updated.definition.tasks.every((task) => updated.execution?.tasks[task.id].endedAt);
+  const allDone = updated.definition.tasks.filter((task) => task.kind !== 'project').every((task) => updated.execution?.tasks[task.id].endedAt);
   return allDone ? { ...updated, status: 'completed' } : updated;
 }
 

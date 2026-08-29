@@ -15,7 +15,7 @@ export function listActorNames(meps: Mep[]): string[] {
 
 export function getActorMepSummaries(meps: Mep[], name: string, now = new Date()): ActorMepSummary[] {
   return meps.flatMap((mep) => {
-    const tasks = mep.definition.tasks.filter((task) => sameActor(actorName(mep, task.actorId), name));
+    const tasks = mep.definition.tasks.filter((task) => task.kind !== 'project' && sameActor(actorName(mep, task.actorId), name));
     if (!tasks.length) return [];
     const executions = tasks.map((task) => mep.execution?.tasks[task.id]).filter(Boolean);
     const starts = executions.flatMap((execution) => execution?.startedAt ? [execution.startedAt] : []);
@@ -29,6 +29,7 @@ export function getActorMepSummaries(meps: Mep[], name: string, now = new Date()
 
 export function getActorActionDetails(meps: Mep[], name: string): ActorActionDetail[] {
   return meps.flatMap((mep) => mep.definition.tasks.flatMap((task) => {
+    if (task.kind === 'project') return [];
     if (!sameActor(actorName(mep, task.actorId), name)) return [];
     const execution = mep.execution?.tasks[task.id];
     return task.actions.map((action) => ({ mepId: mep.id, mepTitle: mep.definition.title, taskId: task.id, taskTitle: task.title, actionId: action.id, actionLabel: action.label, completed: execution?.completedActionIds.includes(action.id) ?? false, startedAt: execution?.startedAt ?? null, endedAt: execution?.endedAt ?? null }));
