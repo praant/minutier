@@ -96,6 +96,10 @@ Chaque tâche possède également un acteur obligatoire. Les acteurs sont conser
 
 L'arbre de la MEP regroupe les tâches par niveau de dépendance et se met à jour chaque seconde. Gris indique une tâche non démarrée, orange une tâche en cours ou en dépassement, et vert une tâche terminée avec succès. Chaque nœud affiche l'acteur et ouvre la tâche correspondante au clic.
 
+## Plusieurs minutiers et modèles
+
+Le sélecteur central permet de passer d'un minutier à l'autre, y compris lorsque plusieurs MEP sont en cours simultanément. Chaque MEP possède un début et une fin théoriques obligatoires. Une MEP terminée peut être enregistrée comme modèle puis choisie comme point de départ lors de la création d'un nouveau minutier.
+
 ## Graphe temps réel
 
 L'arbre de la MEP regroupe les tâches par niveau de dépendance et se met à jour chaque seconde. Gris indique une tâche non démarrée, orange une tâche en cours ou en dépassement, et vert une tâche terminée avec succès. Chaque nœud affiche l'acteur et ouvre la tâche correspondante au clic.
