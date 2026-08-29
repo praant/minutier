@@ -90,4 +90,6 @@ L'application n'utilise aucune variable d'environnement ni base distante. Chaque
 
 Le bouton **Exporter Sheets** télécharge un fichier CSV UTF-8 prêt à être importé dans Google Sheets. Il contient une ligne par tâche avec les statuts, durées, dépendances, actions, consignes, liens et horodatages.
 
+Chaque tâche possède également un acteur obligatoire. Les acteurs sont conservés dans le référentiel local de la MEP. Lorsqu'un nom inconnu est saisi, il est automatiquement créé puis affecté à la tâche. L'acteur apparaît aussi dans l'export Google Sheets.
+
 Dans Google Sheets : **Fichier → Importer**, puis sélectionner le fichier téléchargé. Le séparateur utilisé est le point-virgule, adapté aux paramètres régionaux français.
