@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { assignActor, completeTask, getTaskView, launchMep, startTask, toggleAction, type Actor, type Mep, type TaskDefinition, type TaskStatus } from '../lib/mep';
 import { createSampleMep } from '../lib/sample';
-import { loadMep, saveMep } from '../lib/storage';
+import { createMepFromDefinition, createTemplate, createWorkspace, loadWorkspace, saveWorkspace, type MepTemplate } from '../lib/storage';
 import { downloadMepCsv } from '../lib/export';
 import { buildTaskLevels } from '../lib/graph';
 
@@ -11,19 +11,22 @@ const statusText: Record<TaskStatus, string> = { blocked: 'Bloquée', ready: 'Pr
 const formatTime = (seconds: number) => `${seconds < 0 ? '+' : ''}${Math.floor(Math.abs(seconds) / 60).toString().padStart(2, '0')}:${Math.floor(Math.abs(seconds) % 60).toString().padStart(2, '0')}`;
 
 export default function Home() {
-  const [mep, setMep] = useState<Mep>(() => createSampleMep());
+  const [workspace, setWorkspace] = useState(() => createWorkspace(createSampleMep()));
   const [now, setNow] = useState(() => new Date());
   const [hydrated, setHydrated] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>('preflight');
   const [error, setError] = useState('');
+  const [showCreator, setShowCreator] = useState(false);
+  const mep = workspace.meps.find((candidate) => candidate.id === workspace.selectedMepId) ?? workspace.meps[0];
+  const setMep = (next: Mep | ((current: Mep) => Mep)) => setWorkspace((current) => ({ ...current, meps: current.meps.map((item) => item.id === current.selectedMepId ? (typeof next === 'function' ? next(item) : next) : item) }));
 
   useEffect(() => {
     // The browser is the source of truth after hydration; storage is unavailable during SSR.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMep(loadMep(window.localStorage) ?? createSampleMep());
+    setWorkspace(loadWorkspace(window.localStorage, createSampleMep()));
     setHydrated(true);
   }, []);
-  useEffect(() => { if (hydrated) saveMep(window.localStorage, mep); }, [hydrated, mep]);
+  useEffect(() => { if (hydrated) saveWorkspace(window.localStorage, workspace); }, [hydrated, workspace]);
   useEffect(() => { const interval = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(interval); }, []);
 
   const taskViews = useMemo(() => mep.definition.tasks.map((task) => getTaskView(mep, task.id, now)), [mep, now]);
@@ -39,16 +42,27 @@ export default function Home() {
   const editTask = (taskId: string, updater: (task: TaskDefinition) => void) => editDefinition((definition) => { const task = definition.tasks.find((candidate) => candidate.id === taskId); if (task) updater(task); });
   const addTask = () => { const id = crypto.randomUUID(); editDefinition((definition) => definition.tasks.push({ id, title: 'Nouvelle tâche', description: '', actorId: definition.actors[0]?.id ?? '', plannedDurationSeconds: 300, dependsOn: [], actions: [], links: [] })); setSelectedTaskId(id); };
   const run = (operation: () => Mep) => { try { setMep(operation()); setError(''); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Une erreur est survenue.'); } };
-  const reset = () => { const fresh = createSampleMep(); setMep(fresh); setSelectedTaskId(fresh.definition.tasks[0].id); setError(''); };
+  const reset = () => { const fresh = { ...createSampleMep(), id: mep.id }; setMep(fresh); setSelectedTaskId(fresh.definition.tasks[0].id); setError(''); };
+  const selectMep = (id: string) => { setWorkspace((current) => ({ ...current, selectedMepId: id })); const target = workspace.meps.find((item) => item.id === id); setSelectedTaskId(target?.definition.tasks[0]?.id ?? null); setError(''); };
+  const addMep = (title: string, start: string, end: string, template?: MepTemplate) => {
+    const base = template?.definition ?? createSampleMep().definition;
+    const created = createMepFromDefinition({ ...structuredClone(base), plannedStartAt: start, plannedEndAt: end }, title);
+    setWorkspace((current) => ({ ...current, selectedMepId: created.id, meps: [...current.meps, created] }));
+    setSelectedTaskId(created.definition.tasks[0]?.id ?? null);
+    setShowCreator(false);
+  };
+  const saveAsTemplate = () => { try { const template = createTemplate(mep); setWorkspace((current) => ({ ...current, templates: [...current.templates, template] })); setError(''); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Impossible de créer le modèle.'); } };
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">M</span><div><strong>MEP Tempo</strong><span>Poste de commande</span></div></div><div className="top-actions"><span className={`mep-state mep-state--${mep.status}`}><i /> {mep.status === 'draft' ? 'Brouillon modifiable' : mep.status === 'running' ? 'MEP en cours' : 'MEP terminée'}</span><button className="button button--sheets" onClick={() => downloadMepCsv(mep, now)} title="Télécharger un CSV compatible avec Google Sheets">▦ Exporter Sheets</button><button className="button button--ghost" onClick={reset}>Réinitialiser</button>{mep.status === 'draft' && <button className="button button--primary" onClick={() => run(() => launchMep(mep))}>Lancer la MEP <span>→</span></button>}</div></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">M</span><div><strong>MEP Tempo</strong><span>Poste de commande</span></div></div><div className="mep-switcher"><select aria-label="Minutier actif" value={mep.id} onChange={(event) => selectMep(event.target.value)}>{workspace.meps.map((item) => <option key={item.id} value={item.id}>{item.definition.title} · {item.status === 'draft' ? 'Brouillon' : item.status === 'running' ? 'En cours' : 'Terminée'}</option>)}</select><button className="button button--new" onClick={() => setShowCreator(true)}>＋ Nouveau minutier</button></div><div className="top-actions"><span className={`mep-state mep-state--${mep.status}`}><i /> {mep.status === 'draft' ? 'Brouillon modifiable' : mep.status === 'running' ? 'MEP en cours' : 'MEP terminée'}</span><button className="button button--sheets" onClick={() => downloadMepCsv(mep, now)} title="Télécharger un CSV compatible avec Google Sheets">▦ Exporter Sheets</button>{mep.status === 'completed' && <button className="button button--template" onClick={saveAsTemplate}>☆ Enregistrer comme modèle</button>}<button className="button button--ghost" onClick={reset}>Réinitialiser</button>{mep.status === 'draft' && <button className="button button--primary" onClick={() => run(() => launchMep(mep))}>Lancer la MEP <span>→</span></button>}</div></header>
     <section className="hero"><div><p className="eyebrow">MISE EN PRODUCTION · {new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>{mep.status === 'draft' ? <input className="title-input" aria-label="Titre de la MEP" value={mep.definition.title} onChange={(event) => editDefinition((definition) => { definition.title = event.target.value; })} /> : <h1>{mep.definition.title}</h1>}<p className="hero-copy">{mep.status === 'draft' ? 'Préparez le déroulé. Au lancement, cette définition sera figée.' : 'Suivez les opérations en temps réel. Les tâches prêtes peuvent être lancées en parallèle.'}</p></div><div className="progress-panel"><div><span>Progression globale</span><strong>{completedCount} / {mep.definition.tasks.length}</strong></div><div className="progress-track"><i style={{ width: `${progress}%` }} /></div><small>{Math.round(progress)} % terminé</small></div></section>
+    <section className="schedule-bar"><div><span>Début théorique</span>{mep.status === 'draft' ? <input type="datetime-local" value={mep.definition.plannedStartAt} onChange={(event) => editDefinition((definition) => { definition.plannedStartAt = event.target.value; })} /> : <strong>{new Date(mep.definition.plannedStartAt).toLocaleString('fr-FR')}</strong>}</div><i>→</i><div><span>Fin théorique</span>{mep.status === 'draft' ? <input type="datetime-local" value={mep.definition.plannedEndAt} min={mep.definition.plannedStartAt} onChange={(event) => editDefinition((definition) => { definition.plannedEndAt = event.target.value; })} /> : <strong>{new Date(mep.definition.plannedEndAt).toLocaleString('fr-FR')}</strong>}</div></section>
     {error && <div className="error-banner" role="alert">{error}</div>}
     <MepGraph mep={mep} now={now} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} />
     <div className="workspace"><section className="task-list-panel"><div className="section-heading"><div><p className="eyebrow">DÉROULÉ</p><h2>{mep.definition.tasks.length} tâches</h2></div>{mep.status === 'draft' && <button className="icon-button" onClick={addTask} aria-label="Ajouter une tâche">＋</button>}</div><div className="task-list">{taskViews.map((task, index) => <button key={task.id} className={`task-row ${selectedTaskId === task.id ? 'task-row--selected' : ''}`} onClick={() => setSelectedTaskId(task.id)}><span className={`task-number task-number--${task.status}`}>{task.status === 'completed' ? '✓' : index + 1}</span><span className="task-row-copy"><strong>{task.title}</strong><small>{mep.definition.actors.find((actor) => actor.id === task.actorId)?.name ?? 'Non affecté'} · {statusText[task.status]} · {Math.ceil(task.plannedDurationSeconds / 60)} min</small></span>{(task.status === 'running' || task.status === 'overdue') && <b className={task.status === 'overdue' ? 'timer timer--late' : 'timer'}>{formatTime(task.remainingSeconds)}</b>}<span className="chevron">›</span></button>)}</div>{mep.status !== 'draft' && <div className="legend"><span><i className="dot dot--ready" />Prête</span><span><i className="dot dot--running" />En cours</span><span><i className="dot dot--blocked" />Bloquée</span></div>}</section>
       <section className="detail-panel">{!selected || !selectedView ? <div className="empty-state">Sélectionnez une tâche.</div> : mep.status === 'draft' ? <DraftEditor task={selected} actors={mep.definition.actors} allTasks={mep.definition.tasks} onAssignActor={(name) => editDefinition((definition) => assignActor(definition, selected.id, name))} onEdit={(updater) => editTask(selected.id, updater)} onDelete={() => { editDefinition((definition) => { definition.tasks = definition.tasks.filter((task) => task.id !== selected.id).map((task) => ({ ...task, dependsOn: task.dependsOn.filter((id) => id !== selected.id) })); }); setSelectedTaskId(mep.definition.tasks.find((task) => task.id !== selected.id)?.id ?? null); }} /> : <ExecutionPanel task={selectedView} mep={mep} onStart={() => run(() => startTask(mep, selected.id))} onComplete={() => run(() => completeTask(mep, selected.id))} onToggle={(actionId) => run(() => toggleAction(mep, selected.id, actionId))} />}</section>
-    </div><footer><span>Les données restent sur cet appareil</span><span>•</span><span>Sauvegarde automatique</span></footer>
+    </div><footer><span>{workspace.meps.length} minutier{workspace.meps.length > 1 ? 's' : ''} enregistré{workspace.meps.length > 1 ? 's' : ''}</span><span>•</span><span>{workspace.templates.length} modèle{workspace.templates.length > 1 ? 's' : ''}</span><span>•</span><span>Sauvegarde automatique</span></footer>
+    {showCreator && <MepCreator templates={workspace.templates} onClose={() => setShowCreator(false)} onCreate={addMep} />}
   </main>;
 }
 
@@ -60,6 +74,20 @@ function MepGraph({ mep, now, selectedTaskId, onSelect }: { mep: Mep; now: Date;
     const actor = mep.definition.actors.find((candidate) => candidate.id === task.actorId)?.name ?? 'Non affecté';
     return <button key={task.id} className={`graph-node graph-node--${color} ${selectedTaskId === task.id ? 'graph-node--selected' : ''}`} onClick={() => onSelect(task.id)}><span className="graph-node-status">{color === 'done' ? '✓ OK' : color === 'running' ? `● ${view.status === 'overdue' ? 'DÉPASSEMENT' : 'EN COURS'}` : '○ PAS DÉMARRÉ'}</span><strong>{task.title}</strong><small>{actor}</small>{color === 'running' && <b>{formatTime(view.remainingSeconds)}</b>}</button>;
   })}</div>{levelIndex < levels.length - 1 && <span className="graph-arrow" aria-hidden="true">→</span>}</div>)}</div></div></section>;
+}
+
+function MepCreator({ templates, onClose, onCreate }: { templates: MepTemplate[]; onClose: () => void; onCreate: (title: string, start: string, end: string, template?: MepTemplate) => void }) {
+  const [title, setTitle] = useState('Nouvelle MEP');
+  const [start, setStart] = useState(() => new Date(Date.now() + 3600000).toISOString().slice(0, 16));
+  const [end, setEnd] = useState(() => new Date(Date.now() + 7200000).toISOString().slice(0, 16));
+  const [templateId, setTemplateId] = useState('standard');
+  const [formError, setFormError] = useState('');
+  const submit = () => {
+    if (!title.trim()) { setFormError('Le titre est obligatoire.'); return; }
+    if (!start || !end || new Date(end) <= new Date(start)) { setFormError('La fin théorique doit être postérieure au début.'); return; }
+    onCreate(title, start, end, templates.find((template) => template.id === templateId));
+  };
+  return <div className="modal-backdrop" role="presentation"><section className="creator-modal" role="dialog" aria-modal="true" aria-labelledby="creator-title"><div className="detail-heading"><div><p className="eyebrow">NOUVEAU MINUTIER</p><h2 id="creator-title">Créer une MEP</h2></div><button className="modal-close" onClick={onClose} aria-label="Fermer">×</button></div><label>Point de départ<select value={templateId} onChange={(event) => { setTemplateId(event.target.value); const template = templates.find((item) => item.id === event.target.value); if (template) setTitle(`${template.name} — copie`); }}><option value="standard">Exemple standard</option>{templates.map((template) => <option key={template.id} value={template.id}>Modèle · {template.name}</option>)}</select></label><label>Nom du minutier<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><div className="creator-dates"><label>Début théorique<input type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /></label><label>Fin théorique<input type="datetime-local" value={end} min={start} onChange={(event) => setEnd(event.target.value)} /></label></div>{formError && <p className="creator-error">{formError}</p>}<div className="creator-actions"><button className="button button--ghost" onClick={onClose}>Annuler</button><button className="button button--primary" onClick={submit}>Créer le minutier</button></div></section></div>;
 }
 
 function DraftEditor({ task, actors, allTasks, onAssignActor, onEdit, onDelete }: { task: TaskDefinition; actors: Actor[]; allTasks: TaskDefinition[]; onAssignActor: (name: string) => void; onEdit: (updater: (task: TaskDefinition) => void) => void; onDelete: () => void }) {
