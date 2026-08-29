@@ -89,12 +89,25 @@ function ManagementView({ meps, now, onOpenMep }: { meps: Mep[]; now: Date; onOp
 
 function MepGraph({ mep, now, selectedTaskId, onSelect }: { mep: Mep; now: Date; selectedTaskId: string | null; onSelect: (id: string) => void }) {
   const levels = buildTaskLevels(mep.definition.tasks);
-  return <section className="graph-panel" aria-label="Graphe temps réel de la MEP"><div className="graph-header"><div><p className="eyebrow">VISION TEMPS RÉEL</p><h2>Arbre de la MEP</h2></div><div className="graph-legend"><span><i className="graph-dot graph-dot--idle" />Pas démarré</span><span><i className="graph-dot graph-dot--running" />En cours</span><span><i className="graph-dot graph-dot--done" />OK</span></div></div><div className="graph-scroll"><div className="graph-tree">{levels.map((level, levelIndex) => <div className="graph-stage" key={levelIndex}><small>ÉTAPE {levelIndex + 1}</small><div className="graph-stage-nodes">{level.map((task) => {
-    const view = getTaskView(mep, task.id, now);
-    const color = view.status === 'completed' ? 'done' : view.status === 'running' || view.status === 'overdue' ? 'running' : 'idle';
-    const actor = mep.definition.actors.find((candidate) => candidate.id === task.actorId)?.name ?? 'Non affecté';
-    return <button key={task.id} className={`graph-node graph-node--${color} ${selectedTaskId === task.id ? 'graph-node--selected' : ''}`} onClick={() => onSelect(task.id)}><span className="graph-node-status">{color === 'done' ? '✓ OK' : color === 'running' ? `● ${view.status === 'overdue' ? 'DÉPASSEMENT' : 'EN COURS'}` : '○ PAS DÉMARRÉ'}</span><strong>{task.title}</strong><small>{actor}</small>{color === 'running' && <b>{formatTime(view.remainingSeconds)}</b>}</button>;
-  })}</div>{levelIndex < levels.length - 1 && <span className="graph-arrow" aria-hidden="true">→</span>}</div>)}</div></div></section>;
+  return <section className="graph-panel" aria-label="Graphe temps réel de la MEP"><div className="graph-header"><div><p className="eyebrow">VISION TEMPS RÉEL</p><h2>Arbre de la MEP</h2></div><div className="graph-legend"><span><i className="graph-dot graph-dot--idle" />Pas démarré</span><span><i className="graph-dot graph-dot--running" />En cours</span><span><i className="graph-dot graph-dot--done" />OK</span></div></div><div className="graph-scroll"><div className="graph-tree">{levels.map((level, levelIndex) => {
+    const visible = level.filter((task) => !task.parentId);
+    if (!visible.length) return null;
+    return <div className="graph-stage" key={levelIndex}><small>ÉTAPE {levelIndex + 1}</small><div className="graph-stage-nodes">{visible.map((task) => task.kind === 'project' ? <GraphProject key={task.id} project={task} mep={mep} now={now} selectedTaskId={selectedTaskId} onSelect={onSelect} /> : <GraphTaskNode key={task.id} task={task} mep={mep} now={now} selectedTaskId={selectedTaskId} onSelect={onSelect} />)}</div>{levelIndex < levels.length - 1 && <span className="graph-arrow" aria-hidden="true">→</span>}</div>;
+  })}</div></div></section>;
+}
+
+function GraphProject({ project, mep, now, selectedTaskId, onSelect }: { project: TaskDefinition; mep: Mep; now: Date; selectedTaskId: string | null; onSelect: (id: string) => void }) {
+  const children = mep.definition.tasks.filter((task) => task.parentId === project.id);
+  const view = getTaskView(mep, project.id, now);
+  const color = view.status === 'completed' ? 'done' : view.status === 'running' || view.status === 'overdue' ? 'running' : 'idle';
+  return <div className={`graph-project graph-project--${color}`}><button className={`graph-project-header ${selectedTaskId === project.id ? 'graph-node--selected' : ''}`} onClick={() => onSelect(project.id)}><span>▣ PROJET / ÉTAPE</span><strong>{project.title}</strong><small>{children.length} sous-tâches · {statusText[view.status]}</small></button><div className="graph-project-children">{children.map((child) => <GraphTaskNode key={child.id} task={child} mep={mep} now={now} selectedTaskId={selectedTaskId} onSelect={onSelect} />)}{!children.length && <span className="graph-project-empty">Aucune sous-tâche</span>}</div></div>;
+}
+
+function GraphTaskNode({ task, mep, now, selectedTaskId, onSelect }: { task: TaskDefinition; mep: Mep; now: Date; selectedTaskId: string | null; onSelect: (id: string) => void }) {
+  const view = getTaskView(mep, task.id, now);
+  const color = view.status === 'completed' ? 'done' : view.status === 'running' || view.status === 'overdue' ? 'running' : 'idle';
+  const actor = mep.definition.actors.find((candidate) => candidate.id === task.actorId)?.name ?? 'Non affecté';
+  return <button className={`graph-node graph-node--${color} ${selectedTaskId === task.id ? 'graph-node--selected' : ''}`} onClick={() => onSelect(task.id)}><span className="graph-node-status">{color === 'done' ? '✓ OK' : color === 'running' ? `● ${view.status === 'overdue' ? 'DÉPASSEMENT' : 'EN COURS'}` : '○ PAS DÉMARRÉ'}</span><strong>{task.title}</strong><small>{actor}</small>{color === 'running' && <b>{formatTime(view.remainingSeconds)}</b>}</button>;
 }
 
 function MepCreator({ templates, onClose, onCreate }: { templates: MepTemplate[]; onClose: () => void; onCreate: (title: string, start: string, end: string, template?: MepTemplate) => void }) {
