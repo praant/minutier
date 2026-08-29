@@ -1,6 +1,6 @@
 # MEP Tempo — version 2
 
-Application React/Next.js pour préparer et piloter une mise en production depuis un navigateur. Les données sont enregistrées uniquement dans le `localStorage` de l'appareil.
+Application React/Next.js pour préparer et piloter une mise en production depuis un navigateur. Supabase Auth, PostgreSQL et les politiques Row Level Security sécurisent les données partagées et les rôles OPS, Product Owner, Release Manager et Administrateur.
 
 ## Installation et lancement
 
