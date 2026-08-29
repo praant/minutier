@@ -6,12 +6,13 @@ const statusLabels: Record<TaskStatus, string> = {
 const csvCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
 
 export function createMepCsv(mep: Mep, now = new Date()): string {
-  const header = ['MEP', 'Tâche', 'Statut', 'Durée prévue (min)', 'Temps écoulé (min)', 'Dépendances', 'Actions réalisées', 'Actions totales', 'Consignes', 'Liens', 'Début', 'Fin'];
+  const header = ['MEP', 'Tâche', 'Acteur affecté', 'Statut', 'Durée prévue (min)', 'Temps écoulé (min)', 'Dépendances', 'Actions réalisées', 'Actions totales', 'Consignes', 'Liens', 'Début', 'Fin'];
   const rows = mep.definition.tasks.map((task) => {
     const view = getTaskView(mep, task.id, now);
     return [
       mep.definition.title,
       task.title,
+      mep.definition.actors.find((actor) => actor.id === task.actorId)?.name ?? 'Non affecté',
       statusLabels[view.status],
       Math.ceil(task.plannedDurationSeconds / 60),
       Math.floor(view.elapsedSeconds / 60),

@@ -6,11 +6,18 @@ export const createSampleMep = (): Mep => ({
   execution: null,
   definition: {
     title: 'MEP — Portail client 4.2',
+    actors: [
+      { id: 'actor-release', name: 'Release manager' },
+      { id: 'actor-backend', name: 'Équipe Backend' },
+      { id: 'actor-frontend', name: 'Équipe Frontend' },
+      { id: 'actor-product', name: 'Product owner' },
+    ],
     tasks: [
       {
         id: 'preflight',
         title: 'Contrôles avant déploiement',
         description: 'Valider le pipeline, le plan de retour arrière et prévenir le canal de suivi.',
+        actorId: 'actor-release',
         plannedDurationSeconds: 300,
         dependsOn: [],
         actions: [
@@ -23,6 +30,7 @@ export const createSampleMep = (): Mep => ({
         id: 'api',
         title: 'Déployer l’API',
         description: 'Déployer la nouvelle image puis surveiller les erreurs pendant quelques minutes.',
+        actorId: 'actor-backend',
         plannedDurationSeconds: 600,
         dependsOn: ['preflight'],
         actions: [
@@ -35,6 +43,7 @@ export const createSampleMep = (): Mep => ({
         id: 'web',
         title: 'Déployer le front',
         description: 'Publier les assets, purger le cache et vérifier la page de connexion.',
+        actorId: 'actor-frontend',
         plannedDurationSeconds: 480,
         dependsOn: ['preflight'],
         actions: [
@@ -47,6 +56,7 @@ export const createSampleMep = (): Mep => ({
         id: 'validation',
         title: 'Validation finale',
         description: 'Consolider les contrôles fonctionnels et annoncer la fin de la mise en production.',
+        actorId: 'actor-product',
         plannedDurationSeconds: 300,
         dependsOn: ['api', 'web'],
         actions: [
@@ -58,4 +68,3 @@ export const createSampleMep = (): Mep => ({
     ],
   },
 });
-

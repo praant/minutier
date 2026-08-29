@@ -18,4 +18,18 @@ describe('persistance locale', () => {
   it('ignore une sauvegarde corrompue', () => {
     expect(loadMep({ getItem: () => '{cassé' })).toBeNull();
   });
+
+  it('migre une ancienne MEP sans acteurs', () => {
+    const legacy = createSampleMep() as unknown as Record<string, unknown>;
+    const definition = legacy.definition as Record<string, unknown>;
+    delete definition.actors;
+    definition.tasks = (definition.tasks as Array<Record<string, unknown>>).map((task) => {
+      const copy = { ...task };
+      delete copy.actorId;
+      return copy;
+    });
+    const migrated = loadMep({ getItem: () => JSON.stringify(legacy) });
+    expect(migrated?.definition.actors[0].name).toBe('Non affecté');
+    expect(migrated?.definition.tasks.every((task) => task.actorId === 'actor-migration-non-affecte')).toBe(true);
+  });
 });

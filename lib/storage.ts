@@ -6,13 +6,26 @@ export function loadMep(storage: Pick<Storage, 'getItem'>): Mep | null {
   const raw = storage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Mep;
+    return migrateMep(JSON.parse(raw) as Mep);
   } catch {
     return null;
   }
 }
 
+export function migrateMep(mep: Mep): Mep {
+  const actors = mep.definition.actors;
+  if (Array.isArray(actors) && mep.definition.tasks.every((task) => typeof task.actorId === 'string')) return mep;
+  const fallbackActor = { id: 'actor-migration-non-affecte', name: 'Non affecté' };
+  return {
+    ...mep,
+    definition: {
+      ...mep.definition,
+      actors: Array.isArray(actors) && actors.length ? actors : [fallbackActor],
+      tasks: mep.definition.tasks.map((task) => ({ ...task, actorId: task.actorId || fallbackActor.id })),
+    },
+  };
+}
+
 export function saveMep(storage: Pick<Storage, 'setItem'>, mep: Mep): void {
   storage.setItem(STORAGE_KEY, JSON.stringify(mep));
 }
-

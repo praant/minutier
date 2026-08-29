@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeTask, getTaskStatus, launchMep, startTask, toggleAction, validateDefinition } from './mep';
+import { assignActor, completeTask, getTaskStatus, launchMep, startTask, toggleAction, validateDefinition } from './mep';
 import { createSampleMep } from './sample';
 
 const at = (value: string) => new Date(value);
@@ -39,5 +39,20 @@ describe('moteur de MEP', () => {
     expect(mep.execution?.tasks.preflight.completedActionIds).toEqual(['pipeline']);
     expect(mep.definition.tasks[0].actions[0]).toEqual({ id: 'pipeline', label: 'Pipeline au vert' });
   });
-});
 
+  it('exige un acteur référencé pour chaque tâche', () => {
+    const mep = createSampleMep();
+    mep.definition.tasks[0].actorId = 'acteur-inconnu';
+    expect(validateDefinition(mep.definition)).toContain('Contrôles avant déploiement doit avoir un acteur affecté présent dans la BDD.');
+  });
+
+  it('réutilise un acteur existant ou le crée dans la BDD', () => {
+    const mep = createSampleMep();
+    assignActor(mep.definition, 'preflight', 'équipe backend');
+    expect(mep.definition.tasks[0].actorId).toBe('actor-backend');
+    const before = mep.definition.actors.length;
+    assignActor(mep.definition, 'preflight', 'SRE de garde');
+    expect(mep.definition.actors).toHaveLength(before + 1);
+    expect(mep.definition.actors.find((actor) => actor.name === 'SRE de garde')?.id).toBe(mep.definition.tasks[0].actorId);
+  });
+});

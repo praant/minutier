@@ -12,10 +12,16 @@ export interface TaskLink {
   url: string;
 }
 
+export interface Actor {
+  id: string;
+  name: string;
+}
+
 export interface TaskDefinition {
   id: string;
   title: string;
   description: string;
+  actorId: string;
   plannedDurationSeconds: number;
   dependsOn: string[];
   actions: TaskActionDefinition[];
@@ -24,6 +30,7 @@ export interface TaskDefinition {
 
 export interface MepDefinition {
   title: string;
+  actors: Actor[];
   tasks: TaskDefinition[];
 }
 
@@ -61,13 +68,17 @@ const emptyExecution = (): TaskExecution => ({
 export function validateDefinition(definition: MepDefinition): string[] {
   const errors: string[] = [];
   const ids = new Set(definition.tasks.map((task) => task.id));
+  const actorIds = new Set(definition.actors.map((actor) => actor.id));
 
   if (!definition.title.trim()) errors.push('Le titre de la MEP est obligatoire.');
   if (definition.tasks.length === 0) errors.push('Ajoutez au moins une tâche.');
   if (ids.size !== definition.tasks.length) errors.push('Chaque tâche doit avoir un identifiant unique.');
+  if (actorIds.size !== definition.actors.length) errors.push('Chaque acteur doit avoir un identifiant unique.');
+  if (definition.actors.some((actor) => !actor.name.trim())) errors.push('Chaque acteur doit avoir un nom.');
 
   definition.tasks.forEach((task) => {
     if (!task.title.trim()) errors.push(`La tâche ${task.id} doit avoir un titre.`);
+    if (!task.actorId || !actorIds.has(task.actorId)) errors.push(`${task.title} doit avoir un acteur affecté présent dans la BDD.`);
     if (task.plannedDurationSeconds <= 0) errors.push(`${task.title} doit avoir une durée positive.`);
     task.dependsOn.forEach((dependencyId) => {
       if (!ids.has(dependencyId)) errors.push(`${task.title} dépend d'une tâche inexistante.`);
@@ -77,6 +88,19 @@ export function validateDefinition(definition: MepDefinition): string[] {
 
   if (hasDependencyCycle(definition.tasks)) errors.push('Les dépendances contiennent un cycle.');
   return [...new Set(errors)];
+}
+
+export function assignActor(definition: MepDefinition, taskId: string, actorName: string): void {
+  const task = definition.tasks.find((candidate) => candidate.id === taskId);
+  if (!task) throw new Error('Tâche introuvable.');
+  const normalizedName = actorName.trim();
+  if (!normalizedName) { task.actorId = ''; return; }
+  let actor = definition.actors.find((candidate) => candidate.name.localeCompare(normalizedName, 'fr', { sensitivity: 'base' }) === 0);
+  if (!actor) {
+    actor = { id: crypto.randomUUID(), name: normalizedName };
+    definition.actors.push(actor);
+  }
+  task.actorId = actor.id;
 }
 
 export function hasDependencyCycle(tasks: TaskDefinition[]): boolean {
@@ -184,4 +208,3 @@ function updateExecution(mep: Mep, taskId: string, updater: (task: TaskExecution
     },
   };
 }
-

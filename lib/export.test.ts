@@ -10,6 +10,8 @@ describe('export Google Sheets', () => {
     expect(csv.split('\r\n')).toHaveLength(5);
     expect(csv).toContain('"Durée prévue (min)"');
     expect(csv).toContain('"Contrôles avant déploiement"');
+    expect(csv).toContain('"Acteur affecté"');
+    expect(csv).toContain('"Release manager"');
   });
   it('exporte les états et les actions réalisées', () => {
     const start = new Date('2026-08-29T08:00:00Z');
