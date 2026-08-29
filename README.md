@@ -85,3 +85,9 @@ npx vercel --prod   # production
 ```
 
 L'application n'utilise aucune variable d'environnement ni base distante. Chaque navigateur conserve ses propres MEP dans son stockage local.
+
+## Export Google Sheets
+
+Le bouton **Exporter Sheets** télécharge un fichier CSV UTF-8 prêt à être importé dans Google Sheets. Il contient une ligne par tâche avec les statuts, durées, dépendances, actions, consignes, liens et horodatages.
+
+Dans Google Sheets : **Fichier → Importer**, puis sélectionner le fichier téléchargé. Le séparateur utilisé est le point-virgule, adapté aux paramètres régionaux français.
