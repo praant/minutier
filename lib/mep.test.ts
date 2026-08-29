@@ -11,6 +11,12 @@ describe('moteur de MEP', () => {
     expect(validateDefinition(mep.definition)).toContain('Les dépendances contiennent un cycle.');
   });
 
+  it('valide la chronologie théorique', () => {
+    const mep = createSampleMep();
+    mep.definition.plannedEndAt = mep.definition.plannedStartAt;
+    expect(validateDefinition(mep.definition)).toContain('La fin théorique doit être postérieure au début.');
+  });
+
   it('fige une copie de la définition au lancement', () => {
     const draft = createSampleMep();
     const running = launchMep(draft, at('2026-08-28T19:00:00Z'));

@@ -30,6 +30,8 @@ export interface TaskDefinition {
 
 export interface MepDefinition {
   title: string;
+  plannedStartAt: string;
+  plannedEndAt: string;
   actors: Actor[];
   tasks: TaskDefinition[];
 }
@@ -71,6 +73,8 @@ export function validateDefinition(definition: MepDefinition): string[] {
   const actorIds = new Set(definition.actors.map((actor) => actor.id));
 
   if (!definition.title.trim()) errors.push('Le titre de la MEP est obligatoire.');
+  if (!definition.plannedStartAt || !definition.plannedEndAt) errors.push('Les dates théoriques de début et de fin sont obligatoires.');
+  if (definition.plannedStartAt && definition.plannedEndAt && new Date(definition.plannedEndAt) <= new Date(definition.plannedStartAt)) errors.push('La fin théorique doit être postérieure au début.');
   if (definition.tasks.length === 0) errors.push('Ajoutez au moins une tâche.');
   if (ids.size !== definition.tasks.length) errors.push('Chaque tâche doit avoir un identifiant unique.');
   if (actorIds.size !== definition.actors.length) errors.push('Chaque acteur doit avoir un identifiant unique.');

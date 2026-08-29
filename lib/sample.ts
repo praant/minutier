@@ -6,6 +6,8 @@ export const createSampleMep = (): Mep => ({
   execution: null,
   definition: {
     title: 'MEP — Portail client 4.2',
+    plannedStartAt: '2026-08-29T20:00',
+    plannedEndAt: '2026-08-29T21:30',
     actors: [
       { id: 'actor-release', name: 'Release manager' },
       { id: 'actor-backend', name: 'Équipe Backend' },
